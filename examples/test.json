@@ -1,0 +1,54 @@
+{
+  "project": "CLI Utility Tool",
+  "version": "1.0.0",
+  "description": "A beginner-friendly CLI tool with multiple features",
+  "features": [
+    {
+      "name": "File Compression",
+      "description": "Compress and decompress files using gzip",
+      "commands": ["compress", "decompress", "compress-info"]
+    },
+    {
+      "name": "String Manipulation",
+      "description": "Transform and analyze text",
+      "commands": ["uppercase", "lowercase", "titlecase", "wordcount", "palindrome", "reverse"]
+    },
+    {
+      "name": "API Integration",
+      "description": "Fetch data from public APIs",
+      "commands": ["weather", "joke", "news", "quote"]
+    }
+  ],
+  "examples": {
+    "compression": {
+      "compress": "node index.js compress examples/sample.txt",
+      "decompress": "node index.js decompress examples/sample.txt.gz"
+    },
+    "string": {
+      "uppercase": "node index.js uppercase \"hello world\"",
+      "palindrome": "node index.js palindrome \"racecar\""
+    },
+    "api": {
+      "weather": "node index.js weather \"London\"",
+      "joke": "node index.js joke"
+    }
+  },
+  "testData": {
+    "palindromes": [
+      "racecar",
+      "A man a plan a canal Panama",
+      "Was it a car or a cat I saw",
+      "Never odd or even"
+    ],
+    "sentences": [
+      "The quick brown fox jumps over the lazy dog",
+      "Pack my box with five dozen liquor jugs",
+      "How vexingly quick daft zebras jump"
+    ]
+  },
+  "metadata": {
+    "created": "2025-01-20",
+    "purpose": "Testing and demonstration",
+    "license": "MIT"
+  }
+}

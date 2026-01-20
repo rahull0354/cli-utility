@@ -1,0 +1,35 @@
+The quick brown fox jumps over the lazy dog.
+
+This is a sample text file for testing the CLI Utility tool.
+
+You can use this file to test various commands:
+
+1. Compression:
+   node index.js compress examples/sample.txt
+   node index.js decompress examples/sample.txt.gz
+
+2. String operations:
+   node index.js uppercase "hello world"
+   node index.js wordcount "The quick brown fox"
+
+3. API commands:
+   node index.js weather "New York"
+   node index.js joke
+   node index.js news
+
+A man, a plan, a canal: Panama
+
+This file contains multiple lines of text with various characters,
+numbers (12345), and punctuation marks! It's perfect for testing
+the compression feature.
+
+---
+
+Fun facts:
+- The phrase "The quick brown fox jumps over the lazy dog" uses every letter of the alphabet
+- "A man, a plan, a canal: Panama" is a palindrome
+- Compression works best on repetitive text
+
+---
+
+Thank you for using CLI Utility!
