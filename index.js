@@ -17,15 +17,12 @@ const program = new Command();
 program
   .name('cli-utility')              // Name of the CLI tool
   .description('A beginner-friendly CLI tool with file compression, string manipulation, and API integration')  // Description shown in help
-  .version('1.0.0')                 // Version number (shown with --version)
   .addHelpText('after', `
 Examples:
   $ node index.js uppercase "hello world"
   $ node index.js compress examples/sample.txt
   $ node index.js weather "London"
   $ node index.js joke
-
-For more information, visit: https://github.com/rahull0354/cli-utility
   `);
 
 // Register file compression commands (compress, decompress, compress-info)

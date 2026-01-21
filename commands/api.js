@@ -168,53 +168,66 @@ export async function jokeCategoryCommand(category) {
   }
 }
 
-// News category mappings for different RSS feeds
+// News category mappings for NewsAPI.org
+// Supported categories: business, entertainment, general, health, science, sports, technology
 const NEWS_CATEGORIES = {
-  'top': 'http://rss.cnn.com/rss/cnn_topstories.rss',
-  'us': 'http://rss.cnn.com/rss/cnn_us.rss',
-  'world': 'http://rss.cnn.com/rss/cnn_world.rss',
-  'technology': 'http://rss.cnn.com/rss/cnn_tech.rss',
-  'tech': 'http://rss.cnn.com/rss/cnn_tech.rss',
-  'health': 'http://rss.cnn.com/rss/cnn_health.rss',
-  'entertainment': 'http://rss.cnn.com/rss/cnn_showbiz.rss',
-  'showbiz': 'http://rss.cnn.com/rss/cnn_showbiz.rss',
-  'politics': 'http://rss.cnn.com/rss/cnn_allpolitics.rss',
-  'travel': 'http://rss.cnn.com/rss/cnn_travel.rss',
-  'business': 'http://rss.cnn.com/rss/money_latest.rss',
-  'sport': 'http://feeds.bbci.co.uk/sport/rss.xml',
-  'sports': 'http://feeds.bbci.co.uk/sport/rss.xml',
-  'science': 'http://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
-  'music': 'https://www.nme.com/news/music/feed',
+  'top': 'general',
+  'general': 'general',
+  'business': 'business',
+  'entertainment': 'entertainment',
+  'health': 'health',
+  'science': 'science',
+  'sports': 'sports',
+  'sport': 'sports',
+  'technology': 'technology',
+  'tech': 'technology',
 };
 
 export async function newsCommand(limit = 5) {
-  try {
-    logger.info('Fetching latest news from all categories...');
+  const apiKey = process.env.NEWS_API_KEY;
 
-    // Get top stories using rss2json
-    const rssUrl = NEWS_CATEGORIES['top'];
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-    const response = await axios.get(apiUrl, { timeout: 10000 });
+  if (!apiKey) {
+    logger.error('NEWS_API_KEY not found in environment variables.');
+    logger.info('Please add your NewsAPI.org key to the .env file.');
+    return;
+  }
+
+  try {
+    logger.info('Fetching latest news...');
+
+    // Use NewsAPI.org top-headlines endpoint
+    const apiUrl = 'https://newsapi.org/v2/top-headlines';
+    const response = await axios.get(apiUrl, {
+      params: {
+        apiKey: apiKey,
+        country: 'us',
+        pageSize: limit,
+      },
+      timeout: 10000,
+    });
 
     if (response.data.status !== 'ok') {
       logger.error('Failed to fetch news feed.');
+      logger.error(`API Error: ${response.data.message || 'Unknown error'}`);
       return;
     }
 
-    const items = response.data.items || [];
-    const articles = items.slice(0, limit);
+    const articles = response.data.articles || [];
 
     if (articles.length === 0) {
       logger.warning('No articles found.');
       return;
     }
 
-    logger.header(`Latest News - Top ${articles.length} Headlines (All Categories)`);
+    logger.header(`Latest News - Top ${articles.length} Headlines`);
 
     articles.forEach((article, index) => {
       logger.log(`${(index + 1).toString().padStart(2, '0')}. ${article.title}`);
-      logger.log(`    Source: CNN | Date: ${new Date(article.pubDate).toLocaleDateString()}`);
-      logger.log(`    URL: ${article.link}`);
+      logger.log(`    Source: ${article.source?.name || 'Unknown'} | Date: ${new Date(article.publishedAt).toLocaleDateString()}`);
+      if (article.description) {
+        logger.log(`    ${article.description}`);
+      }
+      logger.log(`    URL: ${article.url}`);
       logger.log('');
     });
 
@@ -223,6 +236,9 @@ export async function newsCommand(limit = 5) {
       logger.error('Request timed out. Please check your internet connection.');
     } else if (err.response) {
       logger.error(`API error: ${err.response.status} ${err.response.statusText}`);
+      if (err.response.data && err.response.data.message) {
+        logger.error(`Message: ${err.response.data.message}`);
+      }
     } else {
       logger.error(`Failed to fetch news: ${err.message}`);
     }
@@ -230,10 +246,18 @@ export async function newsCommand(limit = 5) {
 }
 
 export async function newsCategoryCommand(category, limit = 5) {
+  const apiKey = process.env.NEWS_API_KEY;
+
+  if (!apiKey) {
+    logger.error('NEWS_API_KEY not found in environment variables.');
+    logger.info('Please add your NewsAPI.org key to the .env file.');
+    return;
+  }
+
   if (!category) {
     logger.error('Please provide a category.');
     logger.info('Usage: node index.js news-category <category>');
-    logger.info('Available categories: top, us, world, technology, tech, health, entertainment, showbiz, politics, travel, business, sport, sports, science, music');
+    logger.info('Available categories: top, general, business, entertainment, health, science, sports, technology, tech');
     return;
   }
 
@@ -241,43 +265,47 @@ export async function newsCategoryCommand(category, limit = 5) {
 
   if (!NEWS_CATEGORIES[normalizedCategory]) {
     logger.error(`Category "${category}" not found.`);
-    logger.info('Available categories: top, us, world, technology, tech, health, entertainment, showbiz, politics, travel, business, sport, sports, science, music');
+    logger.info('Available categories: top, general, business, entertainment, health, science, sports, technology, tech');
     return;
   }
 
   try {
     logger.info(`Fetching latest ${category} news...`);
 
-    // Get category-specific news using rss2json
-    const rssUrl = NEWS_CATEGORIES[normalizedCategory];
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-    const response = await axios.get(apiUrl, { timeout: 10000 });
+    // Use NewsAPI.org top-headlines endpoint with category
+    const apiUrl = 'https://newsapi.org/v2/top-headlines';
+    const response = await axios.get(apiUrl, {
+      params: {
+        apiKey: apiKey,
+        country: 'us',
+        category: NEWS_CATEGORIES[normalizedCategory],
+        pageSize: limit,
+      },
+      timeout: 10000,
+    });
 
     if (response.data.status !== 'ok') {
       logger.error('Failed to fetch news feed.');
+      logger.error(`API Error: ${response.data.message || 'Unknown error'}`);
       return;
     }
 
-    const items = response.data.items || [];
-    const articles = items.slice(0, limit);
+    const articles = response.data.articles || [];
 
     if (articles.length === 0) {
       logger.warning(`No articles found for category "${category}".`);
       return;
     }
 
-    // Determine source based on RSS URL
-    let source = 'News';
-    if (rssUrl.includes('cnn')) source = 'CNN';
-    else if (rssUrl.includes('bbci')) source = 'BBC';
-    else if (rssUrl.includes('nme')) source = 'NME';
-
     logger.header(`${category.toUpperCase()} News - Latest ${articles.length} Headlines`);
 
     articles.forEach((article, index) => {
       logger.log(`${(index + 1).toString().padStart(2, '0')}. ${article.title}`);
-      logger.log(`    Source: ${source} | Date: ${new Date(article.pubDate).toLocaleDateString()}`);
-      logger.log(`    URL: ${article.link}`);
+      logger.log(`    Source: ${article.source?.name || 'Unknown'} | Date: ${new Date(article.publishedAt).toLocaleDateString()}`);
+      if (article.description) {
+        logger.log(`    ${article.description}`);
+      }
+      logger.log(`    URL: ${article.url}`);
       logger.log('');
     });
 
@@ -286,6 +314,9 @@ export async function newsCategoryCommand(category, limit = 5) {
       logger.error('Request timed out. Please check your internet connection.');
     } else if (err.response) {
       logger.error(`API error: ${err.response.status} ${err.response.statusText}`);
+      if (err.response.data && err.response.data.message) {
+        logger.error(`Message: ${err.response.data.message}`);
+      }
     } else {
       logger.error(`Failed to fetch news: ${err.message}`);
     }
