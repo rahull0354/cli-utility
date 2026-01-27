@@ -24,7 +24,6 @@ export function header(title) {
   console.log('\n' + chalk.bold.cyan(`=== ${title} ===`));
 }
 
-// Export all functions as a default object for convenience
 export default {
   info,
   success,

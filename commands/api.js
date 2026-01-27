@@ -12,77 +12,56 @@ export async function weatherCommand(city) {
   try {
     logger.info(`Fetching weather for: ${city}`);
 
-    // wttr.in provides weather data in multiple formats
-    // We use format=j1 to get JSON data
-    const url = `https://wttr.in/${encodeURIComponent(city)}?format=j1`;
-    const response = await axios.get(url, { timeout: 10000 });
+    // Step 1: Get coordinates from city name using Open-Meteo Geocoding API
+    const geoUrl = 'https://geocoding-api.open-meteo.com/v1/search';
+    const geoResponse = await axios.get(geoUrl, {
+      params: {
+        name: city,
+        count: 1,
+        language: 'en',
+        format: 'json'
+      },
+      timeout: 10000
+    });
 
-    const data = response.data;
-
-    // Check if nearest_area exists
-    if (!data.nearest_area || data.nearest_area.length === 0) {
-      logger.error('Location not found.');
+    if (!geoResponse.data.results || geoResponse.data.results.length === 0) {
+      logger.error('City not found. Please check the city name.');
       return;
     }
 
-    const location = data.nearest_area[0];
+    const location = geoResponse.data.results[0];
+    const { latitude, longitude, name, country } = location;
 
-    // Try to get current conditions (available for some locations)
-    let current;
-    if (data.current_condition && data.current_condition.length > 0) {
-      current = data.current_condition[0];
-    } else if (data.weather && data.weather.length > 0 && data.weather[0].hourly) {
-      // For locations without current_condition, use hourly data from weather array
-      const hourly = data.weather[0].hourly;
-      // Get current hour to find closest data point
-      const currentHour = new Date().getHours();
-      // Each hourly entry has a 'time' field in minutes from midnight (0, 300, 600, etc.)
-      // Find the entry closest to current time
-      const currentMinutes = currentHour * 60;
-      let closestHour = hourly[0];
-      let minDiff = Infinity;
+    // Step 2: Get weather data using Open-Meteo Weather API
+    const weatherUrl = 'https://api.open-meteo.com/v1/forecast';
+    const weatherResponse = await axios.get(weatherUrl, {
+      params: {
+        latitude: latitude,
+        longitude: longitude,
+        current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m',
+        timezone: 'auto'
+      },
+      timeout: 10000
+    });
 
-      for (const h of hourly) {
-        const diff = Math.abs(parseInt(h.time) - currentMinutes);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestHour = h;
-        }
-      }
-      current = closestHour;
-    } else {
-      logger.error('Weather data not available for this location.');
-      return;
-    }
+    const current = weatherResponse.data.current;
+
+    // Convert temperatures
+    const tempC = current.temperature_2m;
+    const tempF = (tempC * 9/5) + 32;
+    const feelsLikeC = current.apparent_temperature;
+    const feelsLikeF = (feelsLikeC * 9/5) + 32;
+
+    // Get wind direction
+    const windDir = current.wind_direction_10m ? getWindDirection(current.wind_direction_10m) : '';
 
     logger.header('Weather Information');
-    logger.log(`Location:    ${location.areaName[0].value}, ${location.country[0].value}`);
-
-    // Handle both current_condition and hourly data structures
-    // Note: hourly data uses 'tempC' while current_condition uses 'temp_C'
-    const tempC = current.temp_C || current.tempC || current.avgtempC || 'N/A';
-    const tempF = current.temp_F || current.tempF || current.avgtempF || 'N/A';
-    const feelsLikeC = current.FeelsLikeC || current.HeatIndexC || current.chillometerC || tempC;
-    const feelsLikeF = current.FeelsLikeF || current.HeatIndexF || current.chillometerF || tempF;
-    const condition = current.weatherDesc ? (Array.isArray(current.weatherDesc) ? current.weatherDesc[0].value : current.weatherDesc) : 'N/A';
-    const humidity = current.humidity || 'N/A';
-    const windSpeed = current.windspeedKmph || current.windspeedMiles || 'N/A';
-    const windDir = current.winddir16Point || current.winddir || '';
-
-    logger.log(`Temperature: ${tempC}°C (${tempF}°F)`);
-    logger.log(`Feels Like:  ${feelsLikeC}°C (${feelsLikeF}°F)`);
-    logger.log(`Condition:   ${condition}`);
-    logger.log(`Humidity:    ${humidity}%`);
-    logger.log(`Wind:        ${windSpeed} km/h ${windDir ? `(${windDir})` : ''}`);
-
-    if (current.uvIndex !== undefined) {
-      logger.log(`UV Index:    ${current.uvIndex}`);
-    }
-
-    if (current.observation_time) {
-      logger.log('');
-      logger.log(`Last updated: ${current.observation_time}`);
-    }
+    logger.log(`Location:    ${name}, ${country}`);
+    logger.log(`Temperature: ${tempC.toFixed(1)}°C (${tempF.toFixed(1)}°F)`);
+    logger.log(`Feels Like:  ${feelsLikeC.toFixed(1)}°C (${feelsLikeF.toFixed(1)}°F)`);
+    logger.log(`Condition:   ${getWeatherDescription(current.weather_code)}`);
+    logger.log(`Humidity:    ${current.relative_humidity_2m}%`);
+    logger.log(`Wind:        ${current.wind_speed_10m.toFixed(1)} km/h ${windDir ? `(${windDir})` : ''}`);
 
   } catch (err) {
     if (err.code === 'ECONNABORTED') {
@@ -93,6 +72,51 @@ export async function weatherCommand(city) {
       logger.error(`Failed to fetch weather data: ${err.message}`);
     }
   }
+}
+
+function getWeatherDescription(code) {
+  const weatherCodes = {
+    0: 'Clear sky',
+    1: 'Mainly clear',
+    2: 'Partly cloudy',
+    3: 'Overcast',
+    45: 'Foggy',
+    48: 'Depositing rime fog',
+    51: 'Light drizzle',
+    53: 'Moderate drizzle',
+    55: 'Dense drizzle',
+    56: 'Light freezing drizzle',
+    57: 'Dense freezing drizzle',
+    61: 'Slight rain',
+    63: 'Moderate rain',
+    65: 'Heavy rain',
+    66: 'Light freezing rain',
+    67: 'Heavy freezing rain',
+    71: 'Slight snow',
+    73: 'Moderate snow',
+    75: 'Heavy snow',
+    77: 'Snow grains',
+    80: 'Slight rain showers',
+    81: 'Moderate rain showers',
+    82: 'Violent rain showers',
+    85: 'Slight snow showers',
+    86: 'Heavy snow showers',
+    95: 'Thunderstorm',
+    96: 'Thunderstorm with slight hail',
+    99: 'Thunderstorm with heavy hail'
+  };
+  return weatherCodes[code] || 'Unknown';
+}
+
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function getWindDirection(degrees) {
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
 }
 
 export async function jokeCommand(options = {}) {
@@ -327,7 +351,6 @@ export async function quoteCommand() {
   try {
     logger.info('Fetching a random quote...');
 
-    // Using DummyJSON Quotes API - free, no authentication required
     const url = 'https://dummyjson.com/quotes/random';
     const response = await axios.get(url, { timeout: 10000 });
 

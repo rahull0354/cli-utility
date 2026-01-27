@@ -2,21 +2,17 @@ import { Command } from 'commander';
 import dotenv from 'dotenv';
 import logger from './utils/logger.js';
 
-// Import command registration functions from each module
-// These functions register their commands with the Commander program
 import { registerCompressCommands } from './commands/compress.js';
 import { registerStringCommands } from './commands/string.js';
 import { registerApiCommands } from './commands/api.js';
 
-// Load environment variables from .env file (if it exists)
-// This allows configuration without hardcoding values
 dotenv.config();
 
 const program = new Command();
 
 program
-  .name('cli-utility')              // Name of the CLI tool
-  .description('A beginner-friendly CLI tool with file compression, string manipulation, and API integration')  // Description shown in help
+  .name('cli-utility')
+  .description('A beginner-friendly CLI tool with file compression, string manipulation, and API integration')
   .addHelpText('after', `
 Examples:
   $ node index.js uppercase "hello world"
@@ -36,7 +32,6 @@ registerApiCommands(program);
 
 program.configureOutput({
   writeErr: (str) => {
-    // Custom error output using our logger
     logger.error(str);
   },
 });

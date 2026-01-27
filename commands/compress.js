@@ -33,25 +33,16 @@ export async function compressCommand(filePath) {
     const originalSize = await getFileSize(filePath);
 
     logger.info(`Compressing: ${filePath}`);
-
-    // Create streams:
-    // - readStream: Reads the input file
-    // - gzip: Compresses the data using gzip algorithm
-    // - writeStream: Writes the compressed data to output file
     const readStream = createReadStream(filePath);
     const writeStream = createWriteStream(outputPath);
     const gzip = createGzip();
 
-    // Use promises to handle stream completion
-    // We need to wait for the write stream to finish
     await new Promise((resolve, reject) => {
-      // Pipe the streams together:
-      // readStream -> gzip -> writeStream
       readStream
         .pipe(gzip)
         .pipe(writeStream)
-        .on('finish', resolve)  // Called when writing is complete
-        .on('error', reject);   // Called if an error occurs
+        .on('finish', resolve)
+        .on('error', reject); 
 
       // Handle errors on the read stream
       readStream.on('error', reject);
@@ -104,24 +95,17 @@ export async function decompressCommand(filePath) {
 
   try {
     logger.info(`Decompressing: ${filePath}`);
-
-    // Create streams:
-    // - readStream: Reads the compressed file
-    // - unzip: Decompresses the data
-    // - writeStream: Writes the decompressed data to output file
     const readStream = createReadStream(filePath);
     const writeStream = createWriteStream(outputPath);
     const unzip = createUnzip();
 
     // Use promises to handle stream completion
     await new Promise((resolve, reject) => {
-      // Pipe the streams together:
-      // readStream -> unzip -> writeStream
       readStream
         .pipe(unzip)
         .pipe(writeStream)
-        .on('finish', resolve)   // Called when writing is complete
-        .on('error', reject);    // Called if an error occurs
+        .on('finish', resolve)
+        .on('error', reject);
 
       // Handle errors on the read stream
       readStream.on('error', reject);
